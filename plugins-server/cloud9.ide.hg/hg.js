@@ -4,6 +4,7 @@ var util = require("util");
 
 var Plugin = require("../cloud9.core/plugin");
 var c9util = require("../cloud9.core/util");
+var child_process = require('child_process');
 
 var name = "hg";
 var ProcessManager;
@@ -34,6 +35,12 @@ var HgPlugin = function(ide, workspace) {
 util.inherits(HgPlugin, Plugin);
 
 (function() {
+
+    var withHg = function(callback) {
+      child_process.exec('which hg', function(error, stdout) {
+        callback(error, stdout);
+      });
+    };
 
     this.init = function() {
         var self = this;
@@ -67,16 +74,22 @@ util.inherits(HgPlugin, Plugin);
             }
         }
 
-        this.pm.spawn("shell", {
-            command: "hg",
+        withHg(function(error, path) {
+          if(error) {
+            return;
+          }
+
+          this.pm.spawn("shell", {
+            command: path,
             args: message.argv.slice(1),
             cwd: message.cwd,
             extra: message.extra,
             encoding: "ascii"
-        }, this.channel, function(err, pid) {
+          }, this.channel, function(err, pid) {
             if (err)
-                self.error(err, 1, message, client);
-        });
+              self.error(err, 1, message, client);
+          });
+        })
 
         return true;
     };
@@ -96,33 +109,38 @@ util.inherits(HgPlugin, Plugin);
         if (!hghelp) {
             hghelp = {};
 
-            this.pm.exec("shell", {
-                command: "hg",
-                args: [],
-                cwd: message.cwd
-            }, function(code, out, err) {
-                if (!out && err)
-                    out = err;
+            withHg(function(error, path) {
+              if(error) {
+                return;
+              }
 
-                if (!out)
-                    return callback();
+              this.pm.exec("shell", {
+                  command: path,
+                  args: [],
+                  cwd: message.cwd
+              }, function(code, out, err) {
+                  if (!out && err)
+                      out = err;
 
-                hghelp = {
-                    "hg": {
-                        "hint": "mercurial source control",
-                        "commands": {}
-                    }
-                };
+                  if (!out)
+                      return callback();
 
-                out.replace(/([\w]+)[\s]{3,9}([\w].+)\n/gi, function(m, sub, hint) {
-                    if (self.banned.indexOf(sub) > -1)
-                        return;
-                    hghelp.hg.commands[sub] = self.augmentCommand(sub, {"hint": hint});
-                });
-                onfinish();
-            }, null, null);
-        }
-        else {
+                  hghelp = {
+                      "hg": {
+                          "hint": "mercurial source control",
+                          "commands": {}
+                      }
+                  };
+
+                  out.replace(/([\w]+)[\s]{3,9}([\w].+)\n/gi, function(m, sub, hint) {
+                      if (self.banned.indexOf(sub) > -1)
+                          return;
+                      hghelp.hg.commands[sub] = self.augmentCommand(sub, {"hint": hint});
+                  });
+                  onfinish();
+              }, null, null);
+            });
+        } else {
             onfinish();
         }
 
