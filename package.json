@@ -34,7 +34,7 @@
 
         "vfs-local": "https://github.com/c9/vfs-local/tarball/5a95c4a7b313acef3338c31da0001a0d13e9c452",
         "architect": "~0.1.10",
-        "connect-architect": "0.0.6",
+        "connect-architect": "c9/connect-architect",
         "architect-agent": "0.2.2",
         "architect-socket-transport": "0.3.0",
 
